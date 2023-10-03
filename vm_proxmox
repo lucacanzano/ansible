@@ -1,0 +1,106 @@
+---
+- name: Step by Step Virtual Machine Creation
+  hosts: all
+  gather_facts: no
+  vars_prompt:
+    - name: "api_host"
+      prompt: "Enter Proxmox API host"
+      private: no
+    - name: "api_user"
+      prompt: "Enter Proxmox API user (append @pam)"
+      private: no
+    - name: "api_password"
+      prompt: "Enter Proxmox API password"
+      private: yes
+    - name: "proxmox_node_name"
+      prompt: "Enter Proxmox node name"
+      private: no
+    - name: "vm_name"
+      prompt: "Enter virtual machine name"
+      private: no
+    - name: "vm_id"
+      prompt: "Enter virtual machine ID"
+      private: no
+    - name: "cores"
+      prompt: "Enter number of cores"
+      private: no
+    - name: "ram"
+      prompt: "Enter RAM quantity (in MB)"
+      private: no
+    - name: "size"
+      prompt: "Enter storage of SCSI disk (GB)"
+      private: no
+
+  tasks:
+    - name: List ISO files
+      command: ls /mnt/pve/local-data/template/iso
+      register: iso_list
+      changed_when: false
+
+    - name: Create a numbered menu for ISO selection
+      set_fact:
+        iso_menu: "{{ iso_list.stdout_lines }}"
+
+    - name: Display numbered ISO menu
+      debug:
+        msg: |
+          Available ISOs:
+          {% for item in iso_menu %}
+          {{ loop.index }}. {{ item }}
+          {% endfor %}
+
+    - name: Prompt for ISO selection
+      pause:
+        prompt: "Enter the number of the ISO you want to choose (1-{{ iso_menu | length }}): "
+      register: chosen_iso_index
+
+
+    - name: Get the selected ISO
+      set_fact:
+        selected_iso: "{{ iso_menu[chosen_iso_index.user_input | int - 1] }}"
+      
+    - name: Print selected ISO
+      debug:
+        var: selected_iso
+
+
+    - name: Get list of bridged interfaces
+      shell: "ls /sys/class/net | grep -E '^(vmbr).*'"
+      register: bridged_interfaces
+      changed_when: false
+
+    - name: Display bridged interfaces
+      debug:
+        msg: |
+          Available bridged interfaces:
+          {% for iface in bridged_interfaces.stdout_lines %}
+          {{ loop.index }}. {{ iface }}
+          {% endfor %}
+
+    - name: Prompt for network interface selection
+      pause:
+        prompt: "Enter the number of the network interface you want to use (1-{{ bridged_interfaces.stdout_lines | length }}): "
+      register: chosen_iface_index
+
+    - name: Get the selected network interface
+      set_fact:
+        selected_interface: "{{ bridged_interfaces.stdout_lines[chosen_iface_index.user_input | int - 1] }}"
+      
+    - name: Print selected network interface
+      debug:
+        var: selected_interface
+
+    - name: Create Virtual Machine in Proxmox
+      community.general.proxmox_kvm:
+        node: "{{ proxmox_node_name }}"
+        vmid: "{{ vm_id }}"
+        cores: "{{ cores }}"
+        memory: "{{ ram }}"
+        scsi: '{"scsi0":"local-lvm:{{ size }},format=raw"}'
+        ide: '{"ide0":"local-data:iso/{{ selected_iso }},media=cdrom"}'
+        net: '{"net0":"model=virtio,bridge={{ selected_interface }}"}'
+        state: present
+        api_host: "{{ api_host }}"
+        api_user: "{{ api_user }}@pam"
+        api_password: "{{ api_password }}"
+      become: yes
