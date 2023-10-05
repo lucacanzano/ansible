@@ -56,10 +56,19 @@
         storage: "local-lvm"
         memory: "{{ ram }}"
         cores: "{{ cores }}"
-        ciuser : "{{ ciuser }}"
-        cipassword: "{{ cipassword }}"
         timeout: 600
       register: clone_output
+
+    - name: Change Cloud Init User
+      proxmox_kvm:
+        api_host: "{{ api_host }}"
+        api_user: "{{ api_user }}@pam"
+        api_password: "{{ api_password }}"
+        node: "{{ proxmox_node_name }}"
+        name: "{{ new_vm_name }}"
+        ciuser : "{{ ciuser }}"
+        cipassword: "{{ cipassword }}"
+        update: yes
 
     - name: Display Clone Output
       debug:
