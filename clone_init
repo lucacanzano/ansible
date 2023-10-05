@@ -1,0 +1,66 @@
+---
+- name: Clone Proxmox VM
+  hosts: all
+  gather_facts: no
+  vars_prompt:
+    - name: "api_host"
+      prompt: "Enter Proxmox API host"
+      private: no
+    - name: "api_user"
+      prompt: "Enter Proxmox API user (append @pam)"
+      private: no
+    - name: "api_password"
+      prompt: "Enter Proxmox API password"
+      private: yes
+    - name: "proxmox_node_name"
+      prompt: "Enter Proxmox node name"
+      private: no
+    - name: "template_name"
+      prompt: "Enter the template name"
+      private: no
+    - name: "vm_id"
+      prompt: "Enter template ID"
+      private: no
+    - name: "new_vm_name"
+      prompt: "Enter new virtual machine name"
+      private: no
+    - name: "new_vm_id"
+      prompt: "Enter new virtual machine ID"
+      private: no
+    - name: "ciuser"
+      prompt: "Enter Cloud Init user"
+      private: no
+    - name: "cipassword"
+      prompt: "Enter Cloud Init user password"
+      private: yes
+    - name: "ram"
+      prompt: "Enter RAM quantity (in MB)"
+      private: no
+    - name: "cores"
+      prompt: "Enter number of cores"
+      private: no
+
+
+  tasks:
+    - name: Clone Proxmox VM
+      proxmox_kvm:
+        api_host: "{{ api_host }}"
+        api_user: "{{ api_user }}@pam"
+        api_password: "{{ api_password }}"
+        node: "{{ proxmox_node_name }}"
+        clone: "{{ template_name }}"
+        vmid: "{{ vm_id }}"
+        newid: "{{ new_vm_id }}"
+        name : "{{ new_vm_name }}"
+        full: yes
+        storage: "local-lvm"
+        memory: "{{ ram }}"
+        cores: "{{ cores }}"
+        ciuser : "{{ ciuser }}"
+        cipassword: "{{ cipassword }}"
+        timeout: 600
+      register: clone_output
+
+    - name: Display Clone Output
+      debug:
+        var: clone_output
